@@ -1,0 +1,66 @@
+clear
+clc
+str = 'D:\Data\McGillDBAll-255\';
+str1='D:\Data\McGillDBAll-HKS-255\';
+dir1 = dir(str); 
+Allname = struct2cell(dir1);
+Allname = Allname(:,3:length(Allname));
+temp=1;
+shape_feats=[];
+flag=[];
+for i=1:length(Allname)
+    name=strcat(str, Allname{1,i});
+    dir2=dir(name);
+    Allname2 = struct2cell(dir2);
+    for j=1:length(Allname2)-2
+        load (strcat(str1, Allname{1,i}, '\', Allname2{1,j+2}(1:end-3), 'mat'));
+        shape_feats{temp}=HKS;
+        flag(temp)=i;
+      types(temp).grp =Allname(1,i);
+      types(temp).idx = i;
+      temp=temp+1;
+    end    
+end
+
+
+for i=1:length(Allname)
+    [va,in]=find(flag==i);
+    train_index(i)=in(1);
+    class_num(i)=length(in);
+end
+train_num=10;
+whole=[1:size(shape_feats,2)];
+sample_index=[];
+for i=1:length(train_index)
+    sample_index=[sample_index  train_index(i): train_index(i)+train_num-1];
+end
+[index1, index2]=ismember(whole, sample_index);
+test_index=whole(index1==0);
+
+
+
+for i=1:size(shape_feats{1},1)
+    temp=[];
+    for j=1:size(shape_feats,2)
+        temp=[temp;shape_feats{j}(i,:)];  
+    end
+
+   multi_histogram(:,:,i)=temp';
+  
+end
+
+
+label=flag(sample_index);
+lambda=0.001;
+n=[128 1000 500 250 30];
+num_iter=[12,20];
+batch_size=[30,30];
+err_type=2;
+
+for i=1:size(shape_feats{1},1)
+  train_data=multi_histogram(:,sample_index,i);
+test_data=multi_histogram(:,test_index,i);  
+[Wb, RBM_error, BP_error] = train_AE ( train_data, train_data, label,lambda, test_data, ...
+    n, num_iter, batch_size,err_type );
+Y(:,:,i) = AE_forward (  multi_histogram(:,:,i), Wb, n );
+end
